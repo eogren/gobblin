@@ -19,10 +19,17 @@
 
 package gobblin.type;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
+import com.google.gson.stream.JsonWriter;
+import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
 
 
 /**
@@ -31,8 +38,52 @@ import com.google.common.collect.ImmutableList;
 public class SerializedRecordWithMetadata extends RecordWithMetadata<SerializedRecord> {
   public static final List<String> CONTENT_TYPE = ImmutableList.of("application/vnd.lnkd.serializedRecordWithMetadata");
   public static final List<String> CONTENT_TYPE_JSON = ImmutableList.of(CONTENT_TYPE.get(0) + "+json");
-
+  private static final JsonFactory jacksonFactory = new JsonFactory();
   public SerializedRecordWithMetadata(SerializedRecord record, Map<String, Object> metadata) {
     super(record, metadata);
   }
+
+  public String jsonFromGson() {
+    return SerializedRecord.getSerializedAwareGson().toJson(this);
+  }
+
+  public byte[] jsonFromJackson() throws IOException {
+    ByteArrayOutputStream bOs = new ByteArrayOutputStream(1024);
+    JsonGenerator jsonGenerator = jacksonFactory.createJsonGenerator(bOs, JsonEncoding.UTF8);
+
+    jsonGenerator.writeStartObject();
+    jsonGenerator.writeObjectFieldStart("metadata");
+    for (Map.Entry<String, Object> entry: getMetadata().entrySet()) {
+      jsonGenerator.writeStringField(entry.getKey(), (String)entry.getValue());
+    }
+    jsonGenerator.writeEndObject();
+    jsonGenerator.writeFieldName("record");
+    getRecord().jsonFromStreamingJackson(jsonGenerator);
+    jsonGenerator.writeEndObject();
+
+    jsonGenerator.close();
+    return bOs.toByteArray();
+  }
+
+  public String jsonFromStreamingGson() throws IOException {
+    StringWriter writer = new StringWriter(1024);
+    JsonWriter jsonWriter = new JsonWriter(writer);
+    jsonWriter.setHtmlSafe(false);
+    jsonWriter.beginObject();
+    jsonWriter.name("metadata");
+
+    // Array
+    jsonWriter.beginObject();
+    for (Map.Entry<String, Object> entry: getMetadata().entrySet()) {
+      jsonWriter.name(entry.getKey()).value((String)entry.getValue());
+    }
+    jsonWriter.endObject();
+
+    jsonWriter.name("record");
+    getRecord().jsonFromStreamingGson(jsonWriter);
+    jsonWriter.endObject();
+
+    jsonWriter.close();
+    return writer.toString();
+ }
 }

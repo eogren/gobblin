@@ -38,11 +38,13 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+import com.google.gson.stream.JsonWriter;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import gobblin.crypto.Base64Codec;
 import gobblin.util.io.StreamUtils;
+import org.codehaus.jackson.JsonGenerator;
 
 
 /**
@@ -91,6 +93,45 @@ public class SerializedRecord {
     return ContentTypeUtils.getInstance().getCharset(lastContentType).equals("UTF-8");
   }
 
+  public void jsonFromStreamingGson(JsonWriter writer) throws IOException {
+      writer.beginObject();
+      writer.name("contentTypes");
+      writer.beginArray();
+      for (String contentType : getContentTypes()) {
+        writer.value(contentType);
+      }
+      writer.endArray();
+
+      String encodedString;
+      SerializedRecordGsonSerDe serde = new SerializedRecordGsonSerDe();
+      if (areContentsUtf8Encoded()) {
+        encodedString = serde.interpretBufferAsUtf8String(getRecord());
+      } else {
+        encodedString = serde.encodeBufferAsBase64(getRecord());
+      }
+
+      writer.name("record").value(encodedString);
+      writer.endObject();
+    }
+
+  public void jsonFromStreamingJackson(JsonGenerator jsonGenerator) throws IOException {
+    jsonGenerator.writeStartObject();
+    jsonGenerator.writeArrayFieldStart("contentTypes");
+    for (String contentType: getContentTypes()) {
+      jsonGenerator.writeString(contentType);
+    }
+    jsonGenerator.writeEndArray();
+
+    if (areContentsUtf8Encoded()) {
+      jsonGenerator.writeFieldName("record");
+      byte[] bytes = getRecord().array();
+      jsonGenerator.writeUTF8String(bytes, 0, bytes.length);
+    } else {
+      jsonGenerator.writeStringField("record",
+              new SerializedRecordGsonSerDe().encodeBufferAsBase64(getRecord()));
+    }
+  }
+
   private static class SerializedRecordGsonSerDe implements JsonSerializer<SerializedRecord>, JsonDeserializer<SerializedRecord> {
     @Override
     public JsonElement serialize(SerializedRecord src, Type typeOfSrc, JsonSerializationContext context) {
@@ -114,6 +155,7 @@ public class SerializedRecord {
 
       return ret;
     }
+
 
     @Override
     public SerializedRecord deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)

@@ -35,7 +35,7 @@ dependencies {
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  
+
   jmh 'org.openjdk.jmh:jmh-core:1.17.3'
 }
 
@@ -44,7 +44,7 @@ test {
 }
 
 jmh {
-    include = ""
+    include = "JsonBenchmark"
     zip64 = true
     duplicateClassesStrategy = "EXCLUDE"
 }

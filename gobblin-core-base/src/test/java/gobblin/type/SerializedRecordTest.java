@@ -18,9 +18,14 @@
  */
 package gobblin.type;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Map;
+import java.util.Random;
 
+import com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang.RandomStringUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -76,5 +81,21 @@ public class SerializedRecordTest {
 
     String record = decoded.get("record").getAsString();
     Assert.assertEquals(record, "YWJjZA==");
+  }
+
+  @Test
+  public void testStreaming() throws IOException {
+    Random r = new Random();
+    String serializedVal = RandomStringUtils.randomAlphanumeric(100 + r.nextInt(1000));
+    SerializedRecord innerRecord = new SerializedRecord(
+            ByteBuffer.wrap(serializedVal.getBytes(Charset.forName("UTF-8"))),
+            ImmutableList.of("text/plain")
+    );
+
+    Map<String, Object> metadata = ImmutableMap.<String, Object>of("foo", "bar");
+    SerializedRecordWithMetadata serializedRecordWithMetadata = new SerializedRecordWithMetadata(innerRecord, metadata);
+    byte[] json = serializedRecordWithMetadata.jsonFromJackson();
+    String foobar = new String(json, Charset.forName("UTF-8"));
+    Assert.assertTrue(json.length >= 500);
   }
 }
