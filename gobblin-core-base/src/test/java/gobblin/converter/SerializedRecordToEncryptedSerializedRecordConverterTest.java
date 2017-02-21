@@ -61,7 +61,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverterTest {
       throws DataConversionException {
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, 2);
     workUnitState.getJobState()
-        .setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY + ".2",
+        .setProp("converter.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY + ".2",
             "insecure_shift");
 
     converter.init(workUnitState);
@@ -81,7 +81,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverterTest {
   public void worksNoFork()
       throws DataConversionException {
     workUnitState.getJobState()
-        .setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
+        .setProp("converter.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
             "insecure_shift");
     converter.init(workUnitState);
     Iterable<SerializedRecord> records = converter.convertRecord("", sampleRecord, workUnitState);

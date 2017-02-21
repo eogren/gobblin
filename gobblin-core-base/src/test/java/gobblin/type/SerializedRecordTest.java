@@ -96,6 +96,6 @@ public class SerializedRecordTest {
     SerializedRecordWithMetadata serializedRecordWithMetadata = new SerializedRecordWithMetadata(innerRecord, metadata);
     byte[] json = serializedRecordWithMetadata.jsonFromJackson();
     String foobar = new String(json, Charset.forName("UTF-8"));
-    Assert.assertTrue(json.length >= 500);
+    Assert.assertTrue(json.length >= serializedVal.length());
   }
 }

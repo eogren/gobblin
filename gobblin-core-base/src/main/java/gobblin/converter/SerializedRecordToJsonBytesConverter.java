@@ -19,6 +19,8 @@
 
 package gobblin.converter;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
 
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.configuration.WorkUnitState;
 import gobblin.type.SerializedRecord;
 import gobblin.writer.StreamCodec;
+import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
 
 
 /**
@@ -34,6 +39,14 @@ import gobblin.writer.StreamCodec;
 @Slf4j
 public class SerializedRecordToJsonBytesConverter extends Converter<String, String, SerializedRecord, byte[]> {
   private StreamCodec encryptor;
+  private boolean useJackson = false;
+  private static final JsonFactory jsonFactory = new JsonFactory();
+  @Override
+  public Converter<String, String, SerializedRecord, byte[]> init(WorkUnitState workUnit) {
+    super.init(workUnit);
+    useJackson = workUnit.getPropAsBoolean("converter.jackson");
+    return this;
+  }
 
   @Override
   public String convertSchema(String inputSchema, WorkUnitState workUnit)
@@ -44,6 +57,21 @@ public class SerializedRecordToJsonBytesConverter extends Converter<String, Stri
   @Override
   public Iterable<byte[]> convertRecord(String outputSchema, SerializedRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord.toJsonString().getBytes(Charset.forName("UTF-8")));
+    try {
+      byte[] bytes;
+
+      if (useJackson) {
+        ByteArrayOutputStream bOs = new ByteArrayOutputStream(1024);
+        JsonGenerator jsonGenerator = jsonFactory.createJsonGenerator(bOs, JsonEncoding.UTF8);
+        inputRecord.jsonFromStreamingJackson(jsonGenerator);
+        jsonGenerator.close();
+        bytes = bOs.toByteArray();
+      } else {
+        bytes = inputRecord.toJsonString().getBytes(Charset.forName("UTF-8"));
+      }
+      return new SingleRecordIterable<>(bytes);
+    } catch (IOException e) {
+      throw new DataConversionException("Error serializing to json", e);
+    }
   }
 }

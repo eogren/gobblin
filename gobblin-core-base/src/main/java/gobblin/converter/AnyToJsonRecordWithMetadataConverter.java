@@ -44,6 +44,14 @@ import gobblin.type.RecordWithMetadata;
 public class AnyToJsonRecordWithMetadataConverter extends Converter<Object, String, Object, RecordWithMetadata<JsonElement>> {
   private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
   private String recordTypeName;
+  private boolean useJackson;
+
+  @Override
+  public Converter<Object, String, Object, RecordWithMetadata<JsonElement>> init(WorkUnitState workUnit) {
+    super.init(workUnit);
+    useJackson = workUnit.getPropAsBoolean("converter.jackson");
+    return this;
+  }
 
   @Override
   public String convertSchema(Object inputSchema, WorkUnitState workUnit)

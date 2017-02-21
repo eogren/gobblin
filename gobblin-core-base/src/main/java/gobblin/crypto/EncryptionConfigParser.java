@@ -53,8 +53,10 @@ public class EncryptionConfigParser {
    * @param workUnitState State for the object querying config
    * @return A list of encryption properties or null if encryption isn't configured
    */
-  public static Map<String, Object> getConfigForBranch(WorkUnitState workUnitState) {
-    return getConfigForBranch(workUnitState.getJobState(), ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""));
+  public static Map<String, Object> getConfigForBranch(String prefix, WorkUnitState workUnitState) {
+    return getConfigForBranch(workUnitState.getJobState(),
+        ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""),
+        prefix);
   }
 
   /**
@@ -65,12 +67,13 @@ public class EncryptionConfigParser {
    * @return A list of encryption properties or null if encryption isn't configured
    */
   public static Map<String, Object> getConfigForBranch(State taskState, int numBranches, int branch) {
-    return getConfigForBranch(taskState, ForkOperatorUtils.getPropertyNameForBranch("", numBranches, branch));
+    return getConfigForBranch(taskState, ForkOperatorUtils.getPropertyNameForBranch("", numBranches, branch),
+        ENCRYPT_PREFIX);
   }
 
-  private static Map<String, Object> getConfigForBranch(State taskState, String branchSuffix) {
+  private static Map<String, Object> getConfigForBranch(State taskState, String branchSuffix, String prefix) {
     Map<String, Object> properties =
-        extractPropertiesForBranch(taskState.getProperties(), ENCRYPT_PREFIX, branchSuffix);
+        extractPropertiesForBranch(taskState.getProperties(), prefix, branchSuffix);
     if (properties.isEmpty()) {
       return null;
     }

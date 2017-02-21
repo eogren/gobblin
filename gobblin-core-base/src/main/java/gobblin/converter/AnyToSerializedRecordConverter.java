@@ -18,6 +18,7 @@
  */
 package gobblin.converter;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -41,6 +42,14 @@ public class AnyToSerializedRecordConverter extends Converter<String, String, Ob
   private final static List<String> BINARY_CONTENT_TYPE = ImmutableList.of("application/octet-stream");
   private final static List<String> JSON_CONTENT_TYPE = ImmutableList.of("application/json");
   private final static Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+  private boolean useJackson = false;
+
+  @Override
+  public Converter<String, String, Object, SerializedRecord> init(WorkUnitState workUnit) {
+    super.init(workUnit);
+    useJackson = workUnit.getPropAsBoolean("converter.jackson");
+    return this;
+  }
 
   @Override
   public String convertSchema(String inputSchema, WorkUnitState workUnit)
@@ -58,7 +67,7 @@ public class AnyToSerializedRecordConverter extends Converter<String, String, Ob
    * Convert an arbitrary record into a serializedRecord.
    * eventually could pass a SerDe class in here as converter config and/or have SerDes register themselves
    */
-  private SerializedRecord serializeRecord(Object inputRecord, List<String> knownContentType) {
+  private SerializedRecord serializeRecord(Object inputRecord, List<String> knownContentType) throws DataConversionException {
     ByteBuffer serialized;
     List<String> defaultContentType;
     if (inputRecord instanceof SerializedRecord) {
@@ -87,9 +96,17 @@ public class AnyToSerializedRecordConverter extends Converter<String, String, Ob
       SerializedRecordWithMetadata convertedRecord =
           new SerializedRecordWithMetadata(innerRecord, inputRecordCasted.getMetadata());
 
-      return new SerializedRecord(ByteBuffer
-          .wrap(SerializedRecord.getSerializedAwareGson().toJson(convertedRecord).getBytes(Charset.forName("UTF-8"))),
-          SerializedRecordWithMetadata.CONTENT_TYPE_JSON);
+      try {
+        byte[] bytes;
+        if (useJackson) {
+          bytes = convertedRecord.jsonFromJackson();
+        } else {
+          bytes = convertedRecord.jsonFromStreamingGson().getBytes(Charset.forName("UTF-8"));
+        }
+        return new SerializedRecord(ByteBuffer.wrap(bytes), SerializedRecordWithMetadata.CONTENT_TYPE_JSON);
+      } catch (IOException e) {
+        throw new DataConversionException("error serializing to json", e);
+      }
     } else {
       throw new IllegalArgumentException(
           "Don't know how to serialize objects of type " + inputRecord.getClass().getCanonicalName());

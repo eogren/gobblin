@@ -50,7 +50,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Conver
   public Converter<String, String, SerializedRecord, SerializedRecord> init(WorkUnitState workUnit) {
     super.init(workUnit);
 
-    Map<String, Object> encryptionConfig = EncryptionConfigParser.getConfigForBranch(workUnit);
+    Map<String, Object> encryptionConfig = EncryptionConfigParser.getConfigForBranch("converter.encrypt", workUnit);
     if (encryptionConfig == null) {
       throw new IllegalStateException("No encryption config specified in job - can't encrypt!");
     }

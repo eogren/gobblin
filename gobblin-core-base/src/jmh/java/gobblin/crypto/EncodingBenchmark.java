@@ -64,7 +64,7 @@ public class EncodingBenchmark {
     Base64Codec.forceApacheBase64();
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
 
-    OutputStream os = new RotatingAESCodec(state.credStore).encodeOutputStream(sink);
+    OutputStream os = new RotatingAESCodec(state.credStore, false).encodeOutputStream(sink);
     os.write(state.OneKBytes);
     os.close();
 
@@ -75,7 +75,7 @@ public class EncodingBenchmark {
   public byte[] write1KRecordsNewBase64(EncodingBenchmarkState state) throws IOException {
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
 
-    OutputStream os = new RotatingAESCodec(state.credStore).encodeOutputStream(sink);
+    OutputStream os = new RotatingAESCodec(state.credStore, false).encodeOutputStream(sink);
     os.write(state.OneKBytes);
     os.close();
 

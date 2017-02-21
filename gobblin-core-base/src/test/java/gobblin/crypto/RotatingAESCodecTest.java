@@ -45,12 +45,41 @@ import javax.xml.bind.DatatypeConverter;
 
 public class RotatingAESCodecTest {
   @Test
+  public void testStreamCached() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+                           InvalidAlgorithmParameterException{
+    final byte[] toWrite = "hello world".getBytes();
+
+    SimpleCredentialStore credStore = new SimpleCredentialStore();
+    RotatingAESCodec encryptor = new RotatingAESCodec(credStore, true);
+    ByteArrayOutputStream sink = new ByteArrayOutputStream();
+    OutputStream os = encryptor.encodeOutputStream(sink);
+    os.write(toWrite);
+    os.close();
+
+    InputStream in = new ByteArrayInputStream(sink.toByteArray());
+    verifyKeyId(in, 1);
+
+    byte[] ivLen = new byte[3];
+    in.read(ivLen);
+
+    byte[] body = readAndBase64DecodeBody(in);
+
+    // feed back into cipheroutput stream
+    Cipher inputCipher =  Cipher.getInstance("AES/ECB/PKCS5Padding");
+    inputCipher.init(Cipher.DECRYPT_MODE, credStore.getKey());
+
+    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
+    byte[] decoded = IOUtils.toByteArray(cis);
+    Assert.assertEquals(decoded, toWrite, "Expected decoded output to match encoded output");
+  }
+
+  @Test
   public void testStream() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
                            InvalidAlgorithmParameterException{
     final byte[] toWrite = "hello world".getBytes();
 
     SimpleCredentialStore credStore = new SimpleCredentialStore();
-    RotatingAESCodec encryptor = new RotatingAESCodec(credStore);
+    RotatingAESCodec encryptor = new RotatingAESCodec(credStore, false);
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
     OutputStream os = encryptor.encodeOutputStream(sink);
     os.write(toWrite);
@@ -81,7 +110,7 @@ public class RotatingAESCodecTest {
     byte[] buf = new byte[16384];
     long bytesWritten = 0;
     SimpleCredentialStore credStore = new SimpleCredentialStore();
-    RotatingAESCodec encryptor = new RotatingAESCodec(credStore);
+    RotatingAESCodec encryptor = new RotatingAESCodec(credStore, false);
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
     ByteArrayOutputStream originalBytes = new ByteArrayOutputStream();
     OutputStream encryptedStream = encryptor.encodeOutputStream(sink);

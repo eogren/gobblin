@@ -55,7 +55,9 @@ public class RotatingAESCodec implements StreamCodec {
 
   private final Random random;
   private final CredentialStore credentialStore;
+  private final boolean cacheCiphers;
   private volatile List<KeyRecord> keyRecords_cache;
+  private volatile List<CachedCipher> cachedCiphers;
 
   static {
     // this class base64 encodes any potential binary data so it is guaranteed to output utf8
@@ -66,14 +68,21 @@ public class RotatingAESCodec implements StreamCodec {
    * Create a new encryptor
    * @param credentialStore Credential store where keys can be found
    */
-  public RotatingAESCodec(CredentialStore credentialStore) {
+  public RotatingAESCodec(CredentialStore credentialStore, boolean cacheCiphers) {
     this.credentialStore = credentialStore;
     this.random = new Random();
+    this.cacheCiphers = cacheCiphers;
   }
 
   @Override
   public OutputStream encodeOutputStream(OutputStream origStream) throws IOException {
-    return new StreamInstance(selectRandomKey(), origStream).wrapOutputStream();
+    if (cacheCiphers) {
+      List<CachedCipher> ciphers = getCachedCiphers();
+      CachedCipher c = ciphers.get(random.nextInt(ciphers.size()));
+      return new CachingStreamInstance(c.getKeyRecord(), origStream, c.getCipher()).wrapOutputStream();
+    } else {
+      return new StreamInstance(selectRandomKey(), origStream).wrapOutputStream();
+    }
   }
 
   @Override
@@ -81,6 +90,41 @@ public class RotatingAESCodec implements StreamCodec {
     throw new UnsupportedOperationException("not implemented yet");
   }
 
+  private synchronized List<CachedCipher> getCachedCiphers() {
+    if (cachedCiphers != null) {
+      return cachedCiphers;
+    }
+    try {
+      List<KeyRecord> keyRecords = getKeyRecords();
+      cachedCiphers = new ArrayList<>();
+      for (KeyRecord keyRecord : keyRecords) {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, keyRecord.getSecretKey());
+        cachedCiphers.add(new CachedCipher(cipher, keyRecord));
+      }
+    } catch (InvalidKeyException|NoSuchAlgorithmException|NoSuchPaddingException e) {
+      throw new RuntimeException(e);
+    }
+    return cachedCiphers;
+  }
+
+  private static class CachedCipher {
+    private final Cipher cipher;
+    private final KeyRecord keyRecord;
+
+    public CachedCipher(Cipher cipher, KeyRecord keyRecord) {
+      this.cipher = cipher;
+      this.keyRecord = keyRecord;
+    }
+
+    public Cipher getCipher() {
+      return cipher;
+    }
+
+    public KeyRecord getKeyRecord() {
+      return keyRecord;
+    }
+  }
   private synchronized List<KeyRecord> getKeyRecords() {
     if (keyRecords_cache == null) {
       keyRecords_cache = new ArrayList<>();
@@ -118,7 +162,11 @@ public class RotatingAESCodec implements StreamCodec {
 
   @Override
   public String getTag() {
-    return TAG;
+    if (cacheCiphers) {
+      return "aes_cached";
+    } else {
+      return TAG;
+    }
   }
 
   /**
@@ -142,6 +190,19 @@ public class RotatingAESCodec implements StreamCodec {
     }
   }
 
+  static class CachingStreamInstance extends StreamInstance {
+    CachingStreamInstance(KeyRecord secretKey, OutputStream origStream, Cipher cipherToUse) {
+      super(secretKey, origStream);
+      this.cipher = cipherToUse;
+    }
+
+    @Override
+    protected void initCipher() {
+      // cipher used in ctor
+      base64Iv = "";
+      return;
+    }
+  }
   /**
    * Helper class that keeps state around for a wrapped output stream. Each stream will have a different
    * selected key, IV, and cipher state.
@@ -150,8 +211,8 @@ public class RotatingAESCodec implements StreamCodec {
     private final OutputStream origStream;
     private final KeyRecord secretKey;
 
-    private Cipher cipher;
-    private String base64Iv;
+    protected Cipher cipher;
+    protected String base64Iv;
     private boolean headerWritten = false;
 
     StreamInstance(KeyRecord secretKey, OutputStream origStream) {
@@ -194,7 +255,7 @@ public class RotatingAESCodec implements StreamCodec {
         return new Base64Codec().encodeOutputStream(origStream);
     }
 
-    private void initCipher() {
+    protected void initCipher() {
       if (origStream == null) {
         throw new IllegalStateException("Can't initCipher stream before encodeOutputStream() has been called!");
       }

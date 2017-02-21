@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import java.util.zip.GZIPOutputStream;
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.google.common.base.Optional;
@@ -69,7 +70,12 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
     this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, false);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
-    this.stagingFileOutputStream = createStagingFileOutputStream();
+    OutputStream origStream = createStagingFileOutputStream();
+    if (properties.getProp(ConfigurationKeys.WRITER_CODEC_TYPE, "").equals("gzip")) {
+      this.stagingFileOutputStream = new GZIPOutputStream(origStream, 65535);
+    } else {
+      this.stagingFileOutputStream = origStream;
+    }
 
     setStagingFileGroup();
   }

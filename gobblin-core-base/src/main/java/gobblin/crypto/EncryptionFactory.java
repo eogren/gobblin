@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EncryptionFactory {
   private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
-      ImmutableSet.of("insecure_shift", "aes_rotating", EncryptionConfigParser.ENCRYPTION_TYPE_ANY);
+      ImmutableSet.of("insecure_shift", "aes_rotating", "aes_cached", EncryptionConfigParser.ENCRYPTION_TYPE_ANY);
 
   /**
    * Return a set of streaming algorithms (StreamEncoders) that this factory knows how to build
@@ -76,12 +76,14 @@ public class EncryptionFactory {
         return new InsecureShiftCodec(parameters);
       case EncryptionConfigParser.ENCRYPTION_TYPE_ANY:
       case "aes_rotating":
+      case "aes_cached":
         CredentialStore cs = buildCredentialStore(parameters);
         if (cs == null) {
           throw new IllegalArgumentException("Failed to build credential store; can't instantiate AES");
         }
 
-        return new RotatingAESCodec(cs);
+        boolean isCaching = algorithm.equals("aes_cached");
+        return new RotatingAESCodec(cs, isCaching);
       default:
         throw new IllegalArgumentException("Do not support encryption type " + algorithm);
     }
