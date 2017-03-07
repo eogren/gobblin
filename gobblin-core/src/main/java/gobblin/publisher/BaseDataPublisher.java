@@ -32,6 +32,10 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.joda.time.DateTimeUtils;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +89,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
   protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
+  private final long instantiateTime;
 
   public BaseDataPublisher(State state) throws IOException {
     super(state);
@@ -103,6 +108,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     this.metaDataWriterFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
+    this.instantiateTime = DateTimeUtils.currentTimeMillis();
 
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
@@ -209,10 +215,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));
       return;
     }
-
-    // The directory where the final output directory for this job will be placed.
-    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+    Path publisherOutputDir = getFinalOutputDir(state, branchId);
 
     if (publishSingleTaskData) {
 
@@ -253,6 +256,17 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
+  protected final Path getFinalOutputDir(WorkUnitState state, int branchId) {
+    // The directory where the final output directory for this job will be placed.
+    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+
+    // Append timestamp after the getPublisherOutputDir() call - this lets subclases override
+    // the outputDir - and append the timestamp at the end.
+    publisherOutputDir = appendTimestampIfConfigured(state, publisherOutputDir);
+    return publisherOutputDir;
+  }
+
   /**
    * Get the output directory path this {@link BaseDataPublisher} will write to.
    *
@@ -267,6 +281,24 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
    */
   protected Path getPublisherOutputDir(WorkUnitState workUnitState, int branchId) {
     return WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+  }
+
+  /**
+   * Append instantiation timestamp to a directory
+   */
+  private Path appendTimestampIfConfigured(WorkUnitState workUnitState, Path baseDirectory) {
+    if (workUnitState.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_APPEND_TIMESTAMP)) {
+      String tzName = workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TIMEZONE, ConfigurationKeys.DATA_PUBLISHER_TIMEZONE_DEFAULT);
+      DateTimeZone tzToUse = DateTimeZone.forID(tzName);
+
+      String formatPattern = workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_TIMESTAMP_FORMAT,
+          ConfigurationKeys.DATA_PUBLISHER_APPEND_TIMESTAMP_FORMAT_DEFAULT);
+
+      DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(formatPattern).withZone(tzToUse);
+      baseDirectory = new Path(baseDirectory, dateTimeFormatter.print(this.instantiateTime));
+    }
+
+    return baseDirectory;
   }
 
   protected void addSingleTaskWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,

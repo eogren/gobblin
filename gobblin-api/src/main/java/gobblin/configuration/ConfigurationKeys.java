@@ -378,7 +378,19 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
   public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
 
-  /**
+  /*
+   * Timestamp related configuration settings:
+   * APPEND_TIMESTAMP = whether the publisher should append the execution time to the outputDirectory or not
+   * DATA_PUBLISHER_TIMEZONE = which Timezone should be used when writing out the execution time
+   * APPEND_TIMESTAMP_FORMAT = DateTimeFormat string used to generate the timestamp
+   */
+  public static final String DATA_PUBLISHER_APPEND_TIMESTAMP = DATA_PUBLISHER_PREFIX + ".append.timestamp";
+  public static final String DATA_PUBLISHER_TIMEZONE = DATA_PUBLISHER_PREFIX + ".append.timestamp.timezone";
+  public static final String DATA_PUBLISHER_TIMEZONE_DEFAULT = PST_TIMEZONE_NAME;
+  public static final String DATA_PUBLISHER_APPEND_TIMESTAMP_FORMAT = DATA_PUBLISHER_PREFIX + ".append.timestamp.format";
+  public static final String DATA_PUBLISHER_APPEND_TIMESTAMP_FORMAT_DEFAULT = "YYYY-MM-dd";
+
+   /**
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
