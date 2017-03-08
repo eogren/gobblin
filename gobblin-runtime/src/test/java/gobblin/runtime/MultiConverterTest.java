@@ -17,13 +17,17 @@
 
 package gobblin.runtime;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -34,9 +38,11 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
+import gobblin.converter.MetadataAwareConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.test.TestConverter;
+import gobblin.type.RecordWithMetadata;
 
 
 /**
@@ -202,6 +208,26 @@ public class MultiConverterTest {
     Assert.assertEquals(TEST_SCHEMA, multiConverter.convertSchema(TEST_SCHEMA, workUnitState));
     Assert.assertEquals(TEST_RECORD, multiConverter.convertRecord(TEST_SCHEMA, TEST_RECORD, workUnitState).iterator()
         .next());
+  }
+
+  @Test
+  public void testMetadataShim() throws Exception {
+    MultiConverter multiConverter = new MultiConverter(Lists.<Converter<?, ?, ?, ?>>newArrayList(
+        new IdentityConverter(),  new MetadataMarkingConverter(), new IdentityConverter()
+    ));
+    WorkUnitState workUnitState = new WorkUnitState();
+    multiConverter.convertSchema("foobar", workUnitState);
+
+    final String originalRecord = "myString";
+    Iterable<Object> records = multiConverter.convertRecord("schema", originalRecord, workUnitState);
+    Iterator<Object> recordIt = records.iterator();
+    @SuppressWarnings("unchecked")
+    RecordWithMetadata<String> record = (RecordWithMetadata<String>) recordIt.next();
+
+    Assert.assertFalse(recordIt.hasNext());
+    Assert.assertEquals(record.getRecord(), originalRecord + "MODIFIED");
+    Map<String, Object> md = record.getMetadata();
+    Assert.assertEquals(md.get(MetadataMarkingConverter.ADDED_METADATA_KEY), true);
   }
 
   private void checkConvertedAvroData(Schema schema, GenericRecord record) {
@@ -389,6 +415,26 @@ public class MultiConverterTest {
         this.executionCount++;
         return new EmptyIterable<Object>();
       }
+    }
+  }
+
+  private static class MetadataMarkingConverter extends Converter<Object, Object, RecordWithMetadata<Object>, RecordWithMetadata<Object>> implements MetadataAwareConverter<Object> {
+    public static final String ADDED_METADATA_KEY = "seenByMarkingConverter";
+
+    @Override
+    public Object convertSchema(Object inputSchema, WorkUnitState workUnit)
+        throws SchemaConversionException {
+      return inputSchema;
+    }
+
+    @Override
+    public Iterable<RecordWithMetadata<Object>> convertRecord(Object outputSchema,
+        RecordWithMetadata<Object> inputRecord, WorkUnitState workUnit)
+        throws DataConversionException {
+      String origRecord = (String)inputRecord.getRecord();
+      Map<String, Object> md = ImmutableMap.<String, Object>of(ADDED_METADATA_KEY, true);
+      inputRecord.getMetadata().put(ADDED_METADATA_KEY, true);
+      return new SingleRecordIterable<>(new RecordWithMetadata<Object>(origRecord + "MODIFIED", md));
     }
   }
 }

@@ -23,9 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import javax.annotation.Nullable;
 
 import gobblin.Constructs;
 import gobblin.configuration.State;
@@ -34,9 +38,11 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
 import gobblin.converter.IdentityConverter;
+import gobblin.converter.MetadataAwareConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.state.ConstructState;
+import gobblin.type.RecordWithMetadata;
 
 
 /**
@@ -168,9 +174,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         this.prevIterator = prevIterator;
 
         if (this.prevIterator.hasNext()) {
-          this.currentIterator = converter.convertRecord(MultiConverter.this.convertedSchemaMap.get(converter),
-              this.prevIterator.next(), MultiConverterIterator.this.workUnitState).iterator();
-        } else {
+          convertFromPreviousIterator();
+       } else {
           this.currentIterator = new EmptyIterable<>().iterator();
         }
       }
@@ -182,9 +187,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         }
         while (this.prevIterator.hasNext()) {
           try {
-            this.currentIterator =
-                this.converter.convertRecord(MultiConverter.this.convertedSchemaMap.get(this.converter),
-                    this.prevIterator.next(), MultiConverterIterator.this.workUnitState).iterator();
+            convertFromPreviousIterator();
           } catch (DataConversionException e) {
             Throwables.propagate(e);
           }
@@ -193,6 +196,42 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
           }
         }
         return false;
+      }
+
+      private void convertFromPreviousIterator()
+          throws DataConversionException {
+        Object fromPreviousConverter = this.prevIterator.next();
+        Object objectForConverter = fromPreviousConverter;
+        boolean shim = false;
+
+        // If the converter is not metadata aware, shim it in after the fact
+        if (fromPreviousConverter instanceof RecordWithMetadata<?>) {
+          if (!(this.converter instanceof MetadataAwareConverter)) {
+            shim = true;
+            objectForConverter = ((RecordWithMetadata) fromPreviousConverter).getRecord();
+          }
+        } else {
+          if (this.converter instanceof MetadataAwareConverter) {
+            objectForConverter = new RecordWithMetadata<>(objectForConverter, Maps.<String, Object>newHashMap());
+          }
+        }
+
+        Iterator<Object> convertedObjects =
+            this.converter.convertRecord(MultiConverter.this.convertedSchemaMap.get(this.converter),
+                objectForConverter, MultiConverterIterator.this.workUnitState).iterator();
+
+        if (shim) {
+          final Map metadata = ((RecordWithMetadata) fromPreviousConverter).getMetadata();
+          this.currentIterator = Iterators.transform(convertedObjects, new Function<Object, Object>() {
+            @Nullable
+            @Override
+            public Object apply(@Nullable Object record) {
+              return new RecordWithMetadata<>(record, metadata);
+            }
+          });
+        } else {
+          this.currentIterator = convertedObjects;
+        }
       }
 
       @Override

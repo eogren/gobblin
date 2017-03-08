@@ -32,13 +32,14 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
+import gobblin.converter.MetadataAwareConverter;
 import gobblin.converter.SchemaConversionException;
 
 
 /**
  * Converts an Avro record to a json string.
  */
-public class AvroToJsonStringConverter extends Converter<Schema, String, GenericRecord, String> {
+public class AvroToJsonStringConverter extends Converter<Schema, String, GenericRecord, String> implements MetadataAwareConverter<String> {
 
   private Schema schema;
 
