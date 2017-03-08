@@ -17,6 +17,7 @@
 
 package gobblin.converter.avro;
 
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.avro.Schema;
@@ -33,6 +34,7 @@ import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.util.AvroBinarySerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import gobblin.type.RecordWithMetadata;
 import gobblin.util.AvroUtils;
 
 
@@ -56,12 +58,13 @@ public class AvroToJsonStringConverterTest {
     AvroToJsonStringConverter converter = new AvroToJsonStringConverter();
     String outputSchema = converter.convertSchema(metricReportUtf8, new WorkUnitState());
 
-    Iterable<String> converted = converter.convertRecord(outputSchema, genericRecordMetric, new WorkUnitState());
-    List<String> convertedList = Lists.newArrayList(converted);
+    Iterable<RecordWithMetadata<String>> converted = converter.convertRecord(outputSchema, new RecordWithMetadata(genericRecordMetric, new HashMap<>()),
+        new WorkUnitState());
+    List<RecordWithMetadata<String>> convertedList = Lists.newArrayList(converted);
 
     Assert.assertEquals(convertedList.size(), 1);
-    Assert.assertEquals(convertedList.get(0), "{\"tags\":{\"tag\":\"value\"},\"timestamp\":10,\"metrics\":[{\"name\":\"metric\",\"value\":1.0},{\"name\":\"metric2\",\"value\":2.0}]}");
-
+    Assert.assertEquals(convertedList.get(0).getRecord(), "{\"tags\":{\"tag\":\"value\"},\"timestamp\":10,\"metrics\":[{\"name\":\"metric\",\"value\":1.0},{\"name\":\"metric2\",\"value\":2.0}]}");
+    Assert.assertEquals(convertedList.get(0).getMetadata().get("Content-Type"), "gobblin.metrics.MetricReport+json");
   }
 
 }

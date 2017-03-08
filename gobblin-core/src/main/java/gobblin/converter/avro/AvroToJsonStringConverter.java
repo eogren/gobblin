@@ -18,6 +18,7 @@
 package gobblin.converter.avro;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -27,19 +28,20 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.MetadataAwareConverter;
 import gobblin.converter.SchemaConversionException;
+import gobblin.converter.SingleRecordIterable;
+import gobblin.type.RecordWithMetadata;
 
 
 /**
  * Converts an Avro record to a json string.
  */
-public class AvroToJsonStringConverter extends Converter<Schema, String, GenericRecord, String> implements MetadataAwareConverter<String> {
+public class AvroToJsonStringConverter extends Converter<Schema, String, RecordWithMetadata<GenericRecord>, RecordWithMetadata<String>> implements MetadataAwareConverter<String> {
 
   private Schema schema;
 
@@ -66,7 +68,8 @@ public class AvroToJsonStringConverter extends Converter<Schema, String, Generic
       }
     }
 
-    public String serialize(GenericRecord record) throws IOException {
+    public String serialize(GenericRecord record)
+        throws IOException {
       this.outputStream.reset();
       this.writer.write(record, this.encoder);
       this.encoder.flush();
@@ -82,10 +85,19 @@ public class AvroToJsonStringConverter extends Converter<Schema, String, Generic
   }
 
   @Override
-  public Iterable<String> convertRecord(String outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<RecordWithMetadata<String>> convertRecord(String outputSchema,
+      RecordWithMetadata<GenericRecord> inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
-      return Lists.newArrayList(this.serializer.get().serialize(inputRecord));
+      String jsonString = this.serializer.get().serialize(inputRecord.getRecord());
+      Map<String, Object> metadata = inputRecord.getMetadata();
+
+      if (!metadata.containsKey("Content-Type")) {
+        metadata.put("Content-Type", schema.getFullName() + "+json");
+      } else {
+        metadata.put("Transfer-Encoding", "avro_to_json");
+      }
+      return new SingleRecordIterable<>(new RecordWithMetadata<>(jsonString, metadata));
     } catch (IOException ioe) {
       throw new DataConversionException(ioe);
     }
