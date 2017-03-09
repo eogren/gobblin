@@ -55,7 +55,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Conver
       throw new IllegalStateException("No encryption config specified in job - can't encrypt!");
     }
 
-    encryptor = EncryptionFactory.buildStreamEncryptor(encryptionConfig);
+    encryptor = EncryptionFactory.buildStreamCryptoProvider(encryptionConfig);
     return this;
   }
 

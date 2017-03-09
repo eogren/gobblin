@@ -68,6 +68,7 @@ dependencies {
   testCompile externalDependency.mockRunnerJdbc
   testCompile externalDependency.httpcore
   testCompile externalDependency.httpclient
+  testCompile project(":gobblin-test-utils")
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"

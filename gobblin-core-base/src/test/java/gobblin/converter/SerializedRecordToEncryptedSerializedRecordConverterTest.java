@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableList;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.InsecureShiftCodec;
+import gobblin.test.crypto.InsecureShiftCodec;
 import gobblin.type.SerializedRecord;
 
 
@@ -46,7 +46,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverterTest {
     sampleRecord = new SerializedRecord(ByteBuffer.wrap(new byte[]{'a', 'b', 'c', 'd'}),
         ImmutableList.of("application/octet-stream"));
     shiftedValue = new byte[]{'b', 'c', 'd', 'e'};
-    insecureShiftTag = new InsecureShiftCodec(null).getTag();
+    insecureShiftTag = InsecureShiftCodec.TAG;
   }
 
   @Test(expectedExceptions = IllegalStateException.class)

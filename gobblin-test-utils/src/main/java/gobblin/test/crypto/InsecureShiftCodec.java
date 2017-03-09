@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package gobblin.test.crypto;
 
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
@@ -31,6 +31,8 @@ import gobblin.writer.StreamCodec;
  * through it by 1. Useful for unit tests or proof of concept, but is not actually secure.
  */
 public class InsecureShiftCodec implements StreamCodec {
+  public static final String TAG = "insecure_shift";
+
   public InsecureShiftCodec(Map<String, Object> parameters) {
     // InsecureShiftCodec doesn't care about parameters
   }
@@ -100,6 +102,6 @@ public class InsecureShiftCodec implements StreamCodec {
 
   @Override
   public String getTag() {
-    return "encrypted_insecure_shift";
+    return TAG;
   }
 }

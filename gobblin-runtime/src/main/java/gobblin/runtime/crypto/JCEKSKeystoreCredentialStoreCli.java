@@ -249,7 +249,7 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
     }
   }
 
-  private static char[] getPasswordFromConsole() {
+  public static char[] getPasswordFromConsole() {
     System.out.print("Please enter the keystore password: ");
     return System.console().readPassword();
   }

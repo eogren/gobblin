@@ -15,10 +15,16 @@
  * limitations under the License.
  */
 
+apply plugin: 'java'
+apply plugin: 'me.champeau.gradle.jmh'
+
 dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
+  compile project(":gobblin-core-base")
+
+  compile externalDependency.slf4j
+
+  testCompile externalDependency.testng
 }
+
+ext.classification="library"
+
