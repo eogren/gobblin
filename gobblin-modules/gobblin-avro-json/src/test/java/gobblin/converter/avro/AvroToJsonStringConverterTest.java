@@ -35,12 +35,11 @@ import gobblin.test.TestUtils;
 
 public class AvroToJsonStringConverterTest {
   private AvroToJsonStringConverter converter;
-  private GenericRecord sampleRecord;
   private WorkUnitState state;
 
   @BeforeTest
   public void setUp() throws SchemaConversionException {
-    sampleRecord = TestUtils.generateRandomAvroRecord();
+    GenericRecord sampleRecord = TestUtils.generateRandomAvroRecord();
     state = new WorkUnitState();
 
     converter = new AvroToJsonStringConverter();
@@ -48,16 +47,22 @@ public class AvroToJsonStringConverterTest {
   }
 
   @Test
-  public void testRecord() throws DataConversionException, IOException {
-    Iterable<String> records = converter.convertRecord(null, sampleRecord, state);
-    Iterator<String> recordIt = records.iterator();
-    ObjectMapper objectMapper = new ObjectMapper();
+  public void testMultipleRecords() throws DataConversionException, IOException {
+    int NUM_RECORDS = 3;
 
-    String record = recordIt.next();
+    for (int i = 0; i < NUM_RECORDS; i++) {
+      GenericRecord sampleRecord = TestUtils.generateRandomAvroRecord();
+      Iterable<String> records = converter.convertRecord(null, sampleRecord, state);
+      Iterator<String> recordIt = records.iterator();
+      ObjectMapper objectMapper = new ObjectMapper();
 
-    Assert.assertFalse(recordIt.hasNext());
-    JsonNode parsedRecord = objectMapper.readValue(record, JsonNode.class);
+      String record = recordIt.next();
 
-    Assert.assertEquals(parsedRecord.get("field1").getTextValue(), sampleRecord.get("field1").toString());
+      Assert.assertEquals(record.charAt(0), '{');
+      Assert.assertFalse(recordIt.hasNext());
+      JsonNode parsedRecord = objectMapper.readValue(record, JsonNode.class);
+
+      Assert.assertEquals(parsedRecord.get("field1").getTextValue(), sampleRecord.get("field1").toString());
+    }
   }
 }

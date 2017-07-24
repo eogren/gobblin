@@ -26,6 +26,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.codehaus.jackson.JsonEncoding;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.util.MinimalPrettyPrinter;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -60,7 +64,14 @@ public abstract class AvroToJsonStringConverterBase<T> extends Converter<Schema,
       try {
         this.writer = new GenericDatumWriter<>(schema);
         this.outputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().jsonEncoder(schema, this.outputStream);
+
+        // Ensure that no newlines are introduced when the Serializer is re-used
+        JsonGenerator jsonGenerator = new JsonFactory().createJsonGenerator(outputStream, JsonEncoding.UTF8);
+        MinimalPrettyPrinter pp = new MinimalPrettyPrinter();
+        pp.setRootValueSeparator("");
+        jsonGenerator.setPrettyPrinter(pp);
+
+        this.encoder = EncoderFactory.get().jsonEncoder(schema, jsonGenerator);
       } catch (IOException ioe) {
         throw new RuntimeException("Could not initialize avro json encoder.");
       }

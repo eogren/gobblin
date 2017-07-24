@@ -25,6 +25,7 @@ import java.util.Random;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.lang3.RandomStringUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,7 +61,7 @@ public class TestUtils {
     schema.setFields(fields);
 
     GenericData.Record record = new GenericData.Record(schema);
-    record.put("field1", "foobar");
+    record.put("field1", RandomStringUtils.randomAscii(4 + rng.nextInt(12)));
 
     return record;
 
